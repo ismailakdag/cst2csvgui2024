@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import json
 import os
+from pathlib import Path
 from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QPushButton, QFileDialog, 
                            QTableWidget, QTableWidgetItem, QVBoxLayout, QCheckBox, QLineEdit, 
@@ -11,7 +12,96 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QPushButton, QFi
                            QComboBox, QTabWidget, QTextEdit, QDialog)
 from PyQt5.QtCore import Qt
 
-CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
+# Update config file location to use AppData
+def get_config_dir():
+    if os.name == 'nt':  # Windows
+        app_data = os.getenv('APPDATA')
+        if not app_data:
+            app_data = os.path.expanduser('~\\AppData\\Roaming')
+    else:  # Linux/Mac
+        app_data = os.path.expanduser('~/.config')
+    
+    config_dir = os.path.join(app_data, 'CST2CSV')
+    os.makedirs(config_dir, exist_ok=True)
+    return config_dir
+
+CONFIG_FILE = os.path.join(get_config_dir(), 'config.json')
+DEFAULT_CST_PATHS = [
+    "C:\\Program Files\\CST Studio Suite\\Python Support\\3.10",
+    "C:\\Program Files\\CST Studio Suite 2023\\Python Support\\3.10",
+    "C:\\Program Files\\CST Studio Suite 2024\\Python Support\\3.10"
+]
+
+def load_config():
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"Error loading config: {e}")
+    return {'cst_library_path': None}
+
+def save_config(config):
+    try:
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=4)
+    except Exception as e:
+        print(f"Error saving config: {e}")
+
+def find_cst_path():
+    # Try to automatically find CST path
+    for path in DEFAULT_CST_PATHS:
+        if os.path.exists(path):
+            try:
+                sys.path.append(path)
+                import cst.results
+                return path
+            except ImportError:
+                sys.path.remove(path)
+    return None
+
+def setup_cst_path(parent=None):
+    config = load_config()
+    current_path = config.get('cst_library_path')
+    
+    # Check if path exists and is valid
+    path_valid = False
+    if current_path:
+        try:
+            sys.path.append(current_path)
+            import cst.results
+            path_valid = True
+        except ImportError:
+            sys.path.remove(current_path)
+            current_path = None
+    
+    # If current path is invalid, try to find CST automatically
+    if not path_valid:
+        auto_path = find_cst_path()
+        if auto_path:
+            config['cst_library_path'] = auto_path
+            save_config(config)
+            return True
+    
+    # Show dialog if no path or invalid path
+    if not path_valid:
+        dialog = LibraryPathDialog(parent, current_path)
+        if dialog.exec_() == QDialog.Accepted:
+            new_path = dialog.get_path()
+            try:
+                sys.path.append(new_path)
+                import cst.results
+                config['cst_library_path'] = new_path
+                save_config(config)
+                return True
+            except ImportError:
+                sys.path.remove(new_path)
+                QtWidgets.QMessageBox.critical(parent, "Error", 
+                    "Could not find CST Python libraries in the selected path.\n"
+                    "Please make sure you select the correct directory containing 'cst' module.")
+                return setup_cst_path(parent)  # Try again
+        return False
+    return True
 
 class LibraryPathDialog(QDialog):
     def __init__(self, parent=None, current_path=None):
@@ -70,53 +160,6 @@ class LibraryPathDialog(QDialog):
     
     def get_path(self):
         return self.path_input.text()
-
-def load_config():
-    try:
-        if os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE, 'r') as f:
-                return json.load(f)
-    except Exception:
-        pass
-    return {}
-
-def save_config(config):
-    with open(CONFIG_FILE, 'w') as f:
-        json.dump(config, f)
-
-def setup_cst_path(parent=None):
-    config = load_config()
-    current_path = config.get('cst_library_path')
-    
-    # Check if path exists and is valid
-    path_valid = False
-    if current_path:
-        try:
-            sys.path.append(current_path)
-            import cst.results
-            path_valid = True
-        except ImportError:
-            sys.path.remove(current_path)
-    
-    # Show dialog if no path or invalid path
-    if not path_valid:
-        dialog = LibraryPathDialog(parent, current_path)
-        if dialog.exec_() == QDialog.Accepted:
-            new_path = dialog.get_path()
-            try:
-                sys.path.append(new_path)
-                import cst.results
-                config['cst_library_path'] = new_path
-                save_config(config)
-                return True
-            except ImportError:
-                sys.path.remove(new_path)
-                QtWidgets.QMessageBox.critical(parent, "Error", 
-                    "Could not find CST Python libraries in the selected path.\n"
-                    "Please make sure you select the correct directory containing 'cst' module.")
-                return setup_cst_path(parent)  # Try again
-        return False
-    return True
 
 class CSTExportApp(QMainWindow):
     def __init__(self):
