@@ -33,7 +33,7 @@ A Python-based GUI application for exporting CST Studio Suite S-parameter simula
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/cst2csvgui2024.git
+git clone https://github.com/ismailakdag/cst2csvgui2024.git
 cd cst2csvgui2024
 ```
 
