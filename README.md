@@ -29,6 +29,8 @@ A Python-based GUI application for exporting CST Studio Suite S-parameter simula
 3. Run `cst2csv.exe`
 4. On first run, select your CST Studio Suite Python libraries path (typically `C:\Program Files (x86)\CST Studio Suite 20XX\AMD64\python_cst_libraries`)
 
+Important notice: The standalone executable is provided for Windows users only. But now it is not working properly. It is recommended to use the source code instead.
+
 ### Option 2: From Source
 
 1. Clone the repository:
