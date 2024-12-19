@@ -57,7 +57,7 @@ python cst2csv.py
 
 ## Requirements
 
-- Python 3.11 or higher
+- Python 3.11/3.10/3.9
 - CST Studio Suite 2024 (or compatible version)
 - Required Python packages (automatically installed):
   - PyQt5
